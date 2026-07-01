@@ -19,7 +19,8 @@ import {
   Plus,
   Trash2,
   Calculator,
-  RefreshCw
+  RefreshCw,
+  Percent
 } from 'lucide-react';
 import rawData from './data/diem_chuan.json';
 import rawDataLop10 from './data/diem_chuan_lop10.json';
@@ -127,8 +128,8 @@ export default function App() {
   // Navigation tabs: 'suggest' | 'search' (for modes 1 & 2)
   const [activeTab, setActiveTab] = useState('suggest');
   
-  // GPA sub-tabs: 'convert' | 'calculator' (for mode 3)
-  const [activeGpaTab, setActiveGpaTab] = useState('convert');
+  // Tools & Utilities sub-tabs: 'graduation' | 'convert' | 'calculator' (for mode 3)
+  const [activeGpaTab, setActiveGpaTab] = useState('graduation');
 
   // =========================================================================
   // 1. UNIVERSITY & COLLEGE STATES
@@ -174,9 +175,23 @@ export default function App() {
   const [g10SelectedProvince, setG10SelectedProvince] = useState('All');
 
   // =========================================================================
-  // 3. GPA CALCULATOR & CONVERTER STATES
+  // 3. GPA & GRADUATION CALCULATOR STATES
   // =========================================================================
+  // Graduation calculator states (GDPT 2018 / 2025 new format)
+  const [gradScores, setGradScores] = useState({
+    math: '8.0',
+    literature: '8.0',
+    elective1: '8.0',
+    elective2: '8.0',
+    gpa12: '8.0',
+    priority: '0.0',
+    bonus: '0.0'
+  });
+
+  // GPA conversion input
   const [gpa10Input, setGpa10Input] = useState('8.0');
+
+  // GPA course listing calculator
   const [courses, setCourses] = useState([
     { id: 1, name: 'Triết học Mác - Lênin', credits: 3, grade: 'A' },
     { id: 2, name: 'Giải tích 1', credits: 4, grade: 'B+' },
@@ -247,13 +262,11 @@ export default function App() {
         if (!method.method.includes('THPT') && !method.method.includes('Học bạ')) return;
 
         method.majors.forEach(major => {
-          // Major Group Filter
           if (selectedMajorGroup !== 'All') {
             const cat = getMajorCategory(major.major_name);
             if (cat !== selectedMajorGroup) return;
           }
 
-          // Subject Group Filter
           const groups = major.subject_group.toUpperCase();
           const isGroupMatch = groups.includes(selectedGroup) || groups.includes('TẤT CẢ') || groups === 'TẤT CẢ';
           if (!isGroupMatch) return;
@@ -444,16 +457,48 @@ export default function App() {
   };
 
   // =========================================================================
-  // COMPUTED PROPERTIES - GPA CALCULATOR & CONVERTER
+  // COMPUTED PROPERTIES - GPA & GRADUATION CALCULATOR
   // =========================================================================
+  // Graduation calculator logic (Official MOET Formula)
+  const graduationResult = useMemo(() => {
+    const math = parseFloat(gradScores.math) || 0.0;
+    const lit = parseFloat(gradScores.literature) || 0.0;
+    const e1 = parseFloat(gradScores.elective1) || 0.0;
+    const e2 = parseFloat(gradScores.elective2) || 0.0;
+    const gpa = parseFloat(gradScores.gpa12) || 0.0;
+    const priority = parseFloat(gradScores.priority) || 0.0;
+    const bonus = parseFloat(gradScores.bonus) || 0.0;
+
+    // Check for "diểm liệt" (any score <= 1.0 is failed)
+    const rawScores = [math, lit, e1, e2];
+    const isLieth = rawScores.some(s => s <= 1.0);
+    const failedSubjects = [];
+    if (math <= 1.0) failedSubjects.push('Toán');
+    if (lit <= 1.0) failedSubjects.push('Ngữ văn');
+    if (e1 <= 1.0) failedSubjects.push('Môn tự chọn 1');
+    if (e2 <= 1.0) failedSubjects.push('Môn tự chọn 2');
+
+    // Formula
+    const examAvg = (math + lit + e1 + e2) / 4;
+    const score = ((examAvg * 7) + (gpa * 3)) / 10 + priority + bonus;
+
+    let passed = score >= 5.0 && !isLieth;
+    
+    return {
+      score: score.toFixed(2),
+      passed,
+      isLieth,
+      failedSubjects
+    };
+  }, [gradScores]);
+
   // Quick Converter
   const gpaConvertResult = useMemo(() => {
     const score = parseFloat(gpa10Input) || 0.0;
     if (score < 0 || score > 10.0) return null;
 
-    let res = LETTER_GRADES[LETTER_GRADES.length - 1]; // Default to F
+    let res = LETTER_GRADES[LETTER_GRADES.length - 1]; 
     for (const item of LETTER_GRADES) {
-      // Custom threshold checks
       if (score >= 9.0) {
         res = LETTER_GRADES.find(g => g.letter === 'A+') || LETTER_GRADES[0];
         break;
@@ -570,11 +615,14 @@ export default function App() {
     setCourses(courses.filter(c => c.id !== id));
   };
 
-  // Helper to open high school modal
-  const openHighschoolModal = (schoolCode) => {
-    const hs = rawDataLop10.find(s => s.code === schoolCode);
-    if (hs) {
-      setSelectedHighschool(hs);
+  // Helper to open university modal
+  const openUniModal = (uniCode) => {
+    const uni = rawData.find(u => u.code === uniCode);
+    if (uni) {
+      setSelectedUni({
+        ...uni,
+        region: getRegion(uni.name)
+      });
     }
   };
 
@@ -665,7 +713,7 @@ export default function App() {
             }}
           >
             <Calculator style={{ width: '1.1rem', height: '1.1rem' }} />
-            Công cụ Sinh viên (GPA)
+            Công cụ Sinh viên & Học sinh
           </button>
         </div>
 
@@ -1327,27 +1375,190 @@ export default function App() {
         )}
 
         {/* =========================================================================
-            MODE 3: STUDENT TOOLS (GPA CALCULATOR & CONVERTER)
+            MODE 3: STUDENT & HIGH SCHOOL UTILITIES (GPA / GRADUATION CALCULATOR)
             ========================================================================= */}
         {mainMode === 'gpa' && (
           <div className="gpa-layout animate-fade-in">
-            {/* GPA Module sub-navigation tabs */}
+            {/* GPA & Graduation Calculator Sub-Tabs */}
             <div className="gpa-tabs-container">
+              <button
+                className={`gpa-tab-btn ${activeGpaTab === 'graduation' ? 'active' : ''}`}
+                onClick={() => setActiveGpaTab('graduation')}
+              >
+                <Percent style={{ width: '1rem', height: '1rem' }} />
+                Tính Điểm Tốt Nghiệp THPT
+              </button>
               <button
                 className={`gpa-tab-btn ${activeGpaTab === 'convert' ? 'active' : ''}`}
                 onClick={() => setActiveGpaTab('convert')}
               >
                 <RefreshCw style={{ width: '1rem', height: '1rem' }} />
-                Quy Đổi Điểm Số Hệ 10
+                Quy Đổi Điểm Số Hệ 10 (ĐH)
               </button>
               <button
                 className={`gpa-tab-btn ${activeGpaTab === 'calculator' ? 'active' : ''}`}
                 onClick={() => setActiveGpaTab('calculator')}
               >
                 <Calculator style={{ width: '1rem', height: '1rem' }} />
-                Bảng Tính GPA Học Kỳ & Tích Lũy
+                Bảng Tính GPA Đại Học
               </button>
             </div>
+
+            {/* GPA Sub-tab: HIGH SCHOOL GRADUATION CALCULATOR */}
+            {activeGpaTab === 'graduation' && (
+              <div className="gpa-convert-grid">
+                {/* Inputs Sidebar */}
+                <div className="config-sidebar">
+                  <div className="config-card glass-panel" style={{ borderLeft: '3px solid var(--primary)' }}>
+                    <div className="config-header">
+                      <Percent style={{ width: '1.25rem', height: '1.25rem', color: 'var(--primary)' }} />
+                      <h3 style={{ fontWeight: 'bold', color: 'white', fontSize: '1rem' }}>Nhập điểm thi THPT QG</h3>
+                    </div>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      <div className="config-grid-2" style={{ gap: '0.75rem' }}>
+                        <div className="config-form-group">
+                          <label className="config-label" style={{ fontSize: '0.75rem' }}>Môn Toán:</label>
+                          <input 
+                            type="number" step="0.1" min="0" max="10" 
+                            value={gradScores.math}
+                            onChange={(e) => setGradScores({ ...gradScores, math: e.target.value })}
+                            style={{ textAlign: 'center', padding: '6px' }}
+                          />
+                        </div>
+                        <div className="config-form-group">
+                          <label className="config-label" style={{ fontSize: '0.75rem' }}>Ngữ văn:</label>
+                          <input 
+                            type="number" step="0.1" min="0" max="10" 
+                            value={gradScores.literature}
+                            onChange={(e) => setGradScores({ ...gradScores, literature: e.target.value })}
+                            style={{ textAlign: 'center', padding: '6px' }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="config-grid-2" style={{ gap: '0.75rem' }}>
+                        <div className="config-form-group">
+                          <label className="config-label" style={{ fontSize: '0.75rem' }}>Tự chọn 1 (Lý/Sử...):</label>
+                          <input 
+                            type="number" step="0.1" min="0" max="10" 
+                            value={gradScores.elective1}
+                            onChange={(e) => setGradScores({ ...gradScores, elective1: e.target.value })}
+                            style={{ textAlign: 'center', padding: '6px' }}
+                          />
+                        </div>
+                        <div className="config-form-group">
+                          <label className="config-label" style={{ fontSize: '0.75rem' }}>Tự chọn 2 (Hóa/Địa...):</label>
+                          <input 
+                            type="number" step="0.1" min="0" max="10" 
+                            value={gradScores.elective2}
+                            onChange={(e) => setGradScores({ ...gradScores, elective2: e.target.value })}
+                            style={{ textAlign: 'center', padding: '6px' }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="config-form-group" style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '0.75rem' }}>
+                        <label className="config-label" style={{ fontSize: '0.75rem' }}>TB cả năm lớp 12 (GPA):</label>
+                        <input 
+                          type="number" step="0.01" min="0" max="10" 
+                          value={gradScores.gpa12}
+                          onChange={(e) => setGradScores({ ...gradScores, gpa12: e.target.value })}
+                          style={{ textAlign: 'center', padding: '8px', fontSize: '1.05rem', fontWeight: 'bold' }}
+                        />
+                      </div>
+
+                      <div className="config-grid-2" style={{ gap: '0.75rem' }}>
+                        <div className="config-form-group">
+                          <label className="config-label" style={{ fontSize: '0.75rem' }}>Điểm ưu tiên:</label>
+                          <input 
+                            type="number" step="0.25" min="0" max="5" 
+                            value={gradScores.priority}
+                            onChange={(e) => setGradScores({ ...gradScores, priority: e.target.value })}
+                            style={{ textAlign: 'center', padding: '6px' }}
+                          />
+                        </div>
+                        <div className="config-form-group">
+                          <label className="config-label" style={{ fontSize: '0.75rem' }}>Khuyến khích:</label>
+                          <input 
+                            type="number" step="0.5" min="0" max="5" 
+                            value={gradScores.bonus}
+                            onChange={(e) => setGradScores({ ...gradScores, bonus: e.target.value })}
+                            style={{ textAlign: 'center', padding: '6px' }}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Score Calculation Results Output Panel */}
+                <div className="results-panel">
+                  <div className="gpa-result-card glass-panel" style={{ padding: '2rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Award style={{ color: 'var(--primary)' }} />
+                      Ước Tính Kết Quả Tốt Nghiệp THPT QG
+                    </h3>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1.5rem' }}>
+                      <div className="glass-panel" style={{ padding: '1.25rem', textAlign: 'center', background: 'rgba(255, 255, 255, 0.02)' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Điểm xét tốt nghiệp</span>
+                        <div style={{ fontSize: '2.5rem', fontWeight: '900', color: graduationResult.passed ? '#10b981' : '#ef4444', marginTop: '0.25rem' }}>
+                          {graduationResult.score}
+                        </div>
+                      </div>
+
+                      <div className="glass-panel" style={{ padding: '1.25rem', textAlign: 'center', background: 'rgba(255, 255, 255, 0.02)', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Trạng thái tốt nghiệp</span>
+                        <div style={{ marginTop: '0.5rem' }}>
+                          {graduationResult.passed ? (
+                            <span className="badge" style={{ backgroundColor: 'rgba(16,185,129,0.15)', color: '#10b981', borderColor: 'rgba(16,185,129,0.3)', padding: '6px 16px', fontSize: '1rem', fontWeight: 'bold' }}>
+                              ĐỖ TỐT NGHIỆP
+                            </span>
+                          ) : (
+                            <span className="badge" style={{ backgroundColor: 'rgba(239,68,68,0.15)', color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)', padding: '6px 16px', fontSize: '1rem', fontWeight: 'bold' }}>
+                              TRƯỢT TỐT NGHIỆP
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Safety notices and details */}
+                    {graduationResult.isLieth && (
+                      <div className="tip-box" style={{ borderColor: 'rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.05)' }}>
+                        <Info className="tip-icon" style={{ color: '#ef4444' }} />
+                        <div className="tip-text" style={{ color: '#fca5a5', fontSize: '0.85rem' }}>
+                          <strong>Chú ý: Bị điểm liệt tốt nghiệp!</strong>
+                          <br />
+                          Bạn bị điểm thi &le; 1.0đ ở môn: <span style={{ fontWeight: 'bold' }}>{graduationResult.failedSubjects.join(', ')}</span>. Theo quy định của Bộ GD&ĐT, dù điểm xét tốt nghiệp tổng trên 5.0 nhưng có môn thi bị điểm liệt thì vẫn trượt tốt nghiệp THPT.
+                        </div>
+                      </div>
+                    )}
+
+                    {!graduationResult.isLieth && graduationResult.passed && (
+                      <div className="tip-box" style={{ borderColor: 'rgba(16,185,129,0.2)' }}>
+                        <CheckCircle className="tip-icon" style={{ color: '#10b981' }} />
+                        <div className="tip-text" style={{ color: '#a7f3d0', fontSize: '0.85rem' }}>
+                          <strong>Thông tin an toàn:</strong> Điểm xét tốt nghiệp của bạn đạt yêu cầu (&ge; 5.0đ) và không có môn thi nào bị điểm liệt (&le; 1.0đ). Bạn đủ điều kiện đỗ tốt nghiệp THPT Quốc gia!
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Formula and Info */}
+                  <div className="glass-panel" style={{ marginTop: '1.5rem', padding: '1.25rem' }}>
+                    <h4 style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'white', marginBottom: '0.5rem' }}>Công thức tính điểm xét tốt nghiệp chính thức của Bộ GD&ĐT:</h4>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', lineHeight: '1.4' }}>
+                      <span style={{ display: 'block', padding: '0.75rem', background: 'rgba(255,255,255,0.02)', border: '1px dashed rgba(255,255,255,0.05)', borderRadius: '6px', fontFamily: 'monospace', fontSize: '0.8rem', color: '#a5b4fc', marginBottom: '0.5rem', textAlign: 'center' }}>
+                        Điểm xét TN = [((Tổng điểm 4 bài thi / 4) x 7) + (GPA Lớp 12 x 3)] / 10 + Điểm ưu tiên + Điểm khuyến khích
+                      </span>
+                      * <strong>Lưu ý chương trình GDPT 2018:</strong> Thí sinh thi 4 bài thi bao gồm 2 môn bắt buộc (Toán, Văn) và 2 môn tự chọn (chọn trong các môn Ngoại ngữ, Vật lý, Hóa học, Sinh học, Lịch sử, Địa lý, GD Kinh tế và Pháp luật, Tin học, Công nghệ).
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* GPA Sub-tab: QUICK CONVERTER */}
             {activeGpaTab === 'convert' && (
