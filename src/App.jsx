@@ -1273,47 +1273,54 @@ export default function App() {
                   <p style={{ color: '#94a3b8', fontWeight: '500' }}>Không tìm thấy trường THPT nào phù hợp.</p>
                 </div>
               ) : (
-                <div className="search-results-grid">
-                  {g10SearchResults.map((school) => {
-                    const latest = getLatestG10Score(school);
-                    return (
-                      <div 
-                        key={school.code}
-                        onClick={() => setSelectedHighschool(school)}
-                        className="uni-search-card glass-panel"
-                        style={{ borderLeft: '3px solid rgba(16, 185, 129, 0.4)' }}
-                      >
-                        <div>
-                          <div className="uni-card-header">
-                            <span className="badge badge-primary">{school.code.toUpperCase()}</span>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                              <MapPin style={{ width: '0.8rem', height: '0.8rem', color: '#10b981' }} /> {school.province}
+                <>
+                  <div className="search-results-grid">
+                    {g10SearchResults.slice(0, 100).map((school) => {
+                      const latest = getLatestG10Score(school);
+                      return (
+                        <div 
+                          key={school.code}
+                          onClick={() => setSelectedHighschool(school)}
+                          className="uni-search-card glass-panel"
+                          style={{ borderLeft: '3px solid rgba(16, 185, 129, 0.4)' }}
+                        >
+                          <div>
+                            <div className="uni-card-header">
+                              <span className="badge badge-primary">{school.code.toUpperCase()}</span>
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                <MapPin style={{ width: '0.8rem', height: '0.8rem', color: '#10b981' }} /> {school.province}
+                              </span>
+                            </div>
+                            <h4 className="uni-card-title">{school.name}</h4>
+                            <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
+                              Khu vực: {school.area || 'Không rõ'}
+                            </p>
+                          </div>
+
+                          <div className="uni-card-footer">
+                            {latest ? (
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                Điểm chuẩn ({latest.year}): <span style={{ fontWeight: 'bold', color: '#10b981' }}>{latest.nv1}đ</span> ({latest.nv1_avg !== null && latest.nv1_avg !== undefined ? latest.nv1_avg.toFixed(2) + 'đ/môn' : 'chưa có TB'})
+                              </div>
+                            ) : (
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                Chưa công bố điểm chuẩn
+                              </div>
+                            )}
+                            <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                              Lịch sử <ArrowRight style={{ width: '0.85rem', height: '0.85rem' }} />
                             </span>
                           </div>
-                          <h4 className="uni-card-title">{school.name}</h4>
-                          <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '2px' }}>
-                            Khu vực: {school.area || 'Không rõ'}
-                          </p>
                         </div>
-
-                        <div className="uni-card-footer">
-                          {latest ? (
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                              Điểm chuẩn ({latest.year}): <span style={{ fontWeight: 'bold', color: '#10b981' }}>{latest.nv1}đ</span> ({latest.nv1_avg.toFixed(2)}đ/môn)
-                            </div>
-                          ) : (
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                              Chưa công bố điểm chuẩn
-                            </div>
-                          )}
-                          <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                            Lịch sử <ArrowRight style={{ width: '0.85rem', height: '0.85rem' }} />
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      );
+                    })}
+                  </div>
+                  {g10SearchResults.length > 100 && (
+                    <p style={{ textAlign: 'center', fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '1.5rem', width: '100%' }}>
+                      Đang hiển thị 100 trên tổng số {g10SearchResults.length} trường phù hợp. Vui lòng gõ thêm từ khóa để tìm kiếm chính xác hơn.
+                    </p>
+                  )}
+                </>
               )}
             </div>
           </div>
