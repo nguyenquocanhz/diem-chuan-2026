@@ -816,3 +816,82 @@ button.secondary:hover {
   background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
   box-shadow: 0 4px 16px var(--primary-glow);
 }
+
+/* Mini Tab Buttons (Score mode selection) */
+.mini-btn {
+  background: transparent;
+  color: var(--text-muted);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  box-shadow: none;
+}
+
+.mini-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: white;
+  transform: none;
+  box-shadow: none;
+}
+
+.mini-btn.active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+}
+
+/* GPA Calculator subtabs styles */
+.gpa-tabs-container {
+  display: flex;
+  justify-content: flex-start;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 1.75rem;
+  padding-bottom: 2px;
+}
+
+.gpa-tab-btn {
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 8px 8px 0 0;
+  border: 1px solid transparent;
+  padding: 10px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: none;
+}
+
+.gpa-tab-btn:hover {
+  background: rgba(255, 255, 255, 0.03);
+  color: white;
+  transform: none;
+  box-shadow: none;
+}
+
+.gpa-tab-btn.active {
+  border: 1px solid var(--border-color);
+  border-bottom: 2px solid var(--primary);
+  background: var(--bg-card);
+  color: white;
+}
+
+/* GPA layout styles */
+.gpa-convert-grid {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 2rem;
+}
+
+@media (max-width: 768px) {
+  .gpa-convert-grid {
+    grid-template-columns: 1fr;
+  }
+}
